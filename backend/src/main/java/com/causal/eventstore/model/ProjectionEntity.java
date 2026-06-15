@@ -9,6 +9,7 @@ import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
+import java.util.Map;
 
 @Entity
 @Table(name = "projections")
@@ -19,7 +20,11 @@ import java.time.Instant;
 public class ProjectionEntity {
 
     public enum ProjectionStatus {
-        RUNNING, STOPPED, REPLAYING, ERROR
+        RUNNING, STOPPED, REBUILDING, ERROR
+    }
+
+    public enum UpdateStrategy {
+        REALTIME, BATCH
     }
 
     @Id
@@ -32,14 +37,26 @@ public class ProjectionEntity {
     @Column(name = "description", columnDefinition = "TEXT")
     private String description;
 
+    @Column(name = "aggregate_type_pattern", nullable = false)
+    private String aggregateTypePattern;
+
     @Column(name = "event_type_pattern", nullable = false)
     private String eventTypePattern;
 
-    @Column(name = "handler_logic", nullable = false, columnDefinition = "TEXT")
-    private String handlerLogic;
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "projection_expressions", columnDefinition = "jsonb", nullable = false)
+    private Map<String, String> projectionExpressions;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "output_schema", columnDefinition = "jsonb", nullable = false)
+    private Map<String, Object> outputSchema;
 
     @Column(name = "target_table")
     private String targetTable;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "update_strategy", length = 32, nullable = false)
+    private UpdateStrategy updateStrategy;
 
     @JdbcTypeCode(SqlTypes.ARRAY)
     @Column(name = "processed_vector", columnDefinition = "integer[]", nullable = false)
@@ -57,9 +74,24 @@ public class ProjectionEntity {
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
+    @Column(name = "updated_at", nullable = false)
+    private Instant updatedAt;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "status", length = 32, nullable = false)
     private ProjectionStatus status;
+
+    @Column(name = "error_message", columnDefinition = "TEXT")
+    private String errorMessage;
+
+    @Column(name = "error_at")
+    private Instant errorAt;
+
+    @Column(name = "rebuild_total_events")
+    private Long rebuildTotalEvents;
+
+    @Column(name = "rebuild_processed_events")
+    private Long rebuildProcessedEvents;
 
     @Transient
     private VectorClock processedVector;
@@ -72,8 +104,20 @@ public class ProjectionEntity {
     @PrePersist
     public void prePersist() {
         if (createdAt == null) createdAt = Instant.now();
+        if (updatedAt == null) updatedAt = Instant.now();
         if (processedCount == null) processedCount = 0L;
         if (status == null) status = ProjectionStatus.RUNNING;
+        if (updateStrategy == null) updateStrategy = UpdateStrategy.REALTIME;
+        if (aggregateTypePattern == null) aggregateTypePattern = "*";
+        if (eventTypePattern == null) eventTypePattern = "*";
+        if (processedVector != null) {
+            this.processedVectorArray = processedVector.toIntArray();
+        }
+    }
+
+    @PreUpdate
+    public void preUpdate() {
+        updatedAt = Instant.now();
         if (processedVector != null) {
             this.processedVectorArray = processedVector.toIntArray();
         }

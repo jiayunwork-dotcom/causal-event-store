@@ -63,16 +63,43 @@ CREATE TABLE IF NOT EXISTS projections (
     projection_id VARCHAR(255) PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
     description TEXT,
-    event_type_pattern VARCHAR(255) NOT NULL,
-    handler_logic TEXT NOT NULL,
+    aggregate_type_pattern VARCHAR(255) NOT NULL DEFAULT '*',
+    event_type_pattern VARCHAR(255) NOT NULL DEFAULT '*',
+    projection_expressions JSONB NOT NULL DEFAULT '{}',
+    output_schema JSONB NOT NULL DEFAULT '{}',
     target_table VARCHAR(255),
+    update_strategy VARCHAR(32) NOT NULL DEFAULT 'REALTIME',
     processed_vector INTEGER[] NOT NULL DEFAULT '{}',
     last_processed_event_id VARCHAR(64),
     processed_count BIGINT NOT NULL DEFAULT 0,
     last_processed_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    status VARCHAR(32) NOT NULL DEFAULT 'RUNNING'
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    status VARCHAR(32) NOT NULL DEFAULT 'RUNNING',
+    error_message TEXT,
+    error_at TIMESTAMPTZ,
+    rebuild_total_events BIGINT DEFAULT 0,
+    rebuild_processed_events BIGINT DEFAULT 0
 );
+
+CREATE INDEX IF NOT EXISTS idx_projections_status ON projections(status);
+
+CREATE TABLE IF NOT EXISTS pending_projections (
+    id BIGSERIAL PRIMARY KEY,
+    projection_id VARCHAR(255) NOT NULL,
+    event_id VARCHAR(64) NOT NULL,
+    aggregate_id VARCHAR(255) NOT NULL,
+    aggregate_type VARCHAR(255) NOT NULL,
+    event_type VARCHAR(255) NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    processed_at TIMESTAMPTZ,
+    status VARCHAR(32) NOT NULL DEFAULT 'PENDING',
+    error_message TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_pending_projections_projection ON pending_projections(projection_id, status);
+CREATE INDEX IF NOT EXISTS idx_pending_projections_event ON pending_projections(event_id);
+CREATE INDEX IF NOT EXISTS idx_pending_projections_created ON pending_projections(created_at);
 
 CREATE TABLE IF NOT EXISTS conflicts (
     conflict_id BIGSERIAL PRIMARY KEY,

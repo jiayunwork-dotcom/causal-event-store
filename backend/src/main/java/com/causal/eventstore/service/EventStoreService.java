@@ -30,6 +30,7 @@ public class EventStoreService {
     private final ConflictDetectionService conflictDetectionService;
     private final AppConfig appConfig;
     private final ApplicationEventPublisher eventPublisher;
+    private final ProjectionService projectionService;
 
     private final Map<String, Object> aggregateLocks = new ConcurrentHashMap<>();
 
@@ -40,7 +41,8 @@ public class EventStoreService {
                              PartitionService partitionService,
                              ConflictDetectionService conflictDetectionService,
                              AppConfig appConfig,
-                             ApplicationEventPublisher eventPublisher) {
+                             ApplicationEventPublisher eventPublisher,
+                             ProjectionService projectionService) {
         this.eventRepository = eventRepository;
         this.aggregateRepository = aggregateRepository;
         this.partitionSequenceRepository = partitionSequenceRepository;
@@ -49,6 +51,7 @@ public class EventStoreService {
         this.conflictDetectionService = conflictDetectionService;
         this.appConfig = appConfig;
         this.eventPublisher = eventPublisher;
+        this.projectionService = projectionService;
     }
 
     @Transactional
@@ -137,6 +140,14 @@ public class EventStoreService {
         }
 
         conflictDetectionService.detectConflicts(savedEvents);
+
+        for (EventEntity event : savedEvents) {
+            try {
+                projectionService.enqueueEventForProjections(event);
+            } catch (Exception e) {
+                log.warn("Failed to enqueue event for projections: {}", event.getEventId(), e);
+            }
+        }
 
         return AppendResult.builder()
                 .success(true)

@@ -54,9 +54,15 @@ export const subscriptionApi = {
 
 export const projectionApi = {
   list: () => api.get('/projections').then(r => r.data),
+  get: (id) => api.get(`/projections/${id}`).then(r => r.data),
   create: (data) => api.post('/projections', data).then(r => r.data),
-  replay: (id) => api.post(`/projections/${id}/replay`).then(r => r.data),
+  update: (id, data) => api.put(`/projections/${id}`, data).then(r => r.data),
+  rebuild: (id) => api.post(`/projections/${id}/rebuild`).then(r => r.data),
+  pause: (id) => api.post(`/projections/${id}/pause`).then(r => r.data),
+  resume: (id) => api.post(`/projections/${id}/resume`).then(r => r.data),
   delete: (id) => api.delete(`/projections/${id}`).then(r => r.data),
+  getData: (id, params) => api.get(`/projections/${id}/data`, { params }).then(r => r.data),
+  getPendingCount: (id) => api.get(`/projections/${id}/pending-count`).then(r => r.data),
 }
 
 export const conflictApi = {

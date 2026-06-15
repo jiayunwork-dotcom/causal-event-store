@@ -10,4 +10,8 @@ import java.util.List;
 public interface ProjectionRepository extends JpaRepository<ProjectionEntity, String> {
 
     List<ProjectionEntity> findByStatus(ProjectionEntity.ProjectionStatus status);
+
+    List<ProjectionEntity> findByStatusIn(List<ProjectionEntity.ProjectionStatus> statuses);
+
+    List<ProjectionEntity> findByUpdateStrategy(ProjectionEntity.UpdateStrategy updateStrategy);
 }

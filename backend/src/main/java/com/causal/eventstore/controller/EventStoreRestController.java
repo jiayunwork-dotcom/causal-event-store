@@ -4,6 +4,7 @@ import com.causal.eventstore.dto.AppendResult;
 import com.causal.eventstore.dto.EventReadResponse;
 import com.causal.eventstore.dto.EventWriteRequest;
 import com.causal.eventstore.model.EventEntity;
+import com.causal.eventstore.model.ProjectionEntity;
 import com.causal.eventstore.model.VectorClock;
 import com.causal.eventstore.repository.EventRepository;
 import com.causal.eventstore.service.*;
@@ -233,27 +234,137 @@ public class EventStoreRestController {
         return ResponseEntity.ok(projectionService.listProjections());
     }
 
-    @PostMapping("/projections")
-    public ResponseEntity<?> createProjection(@RequestBody Map<String, Object> request) {
-        String id = (String) request.get("projectionId");
-        String name = (String) request.get("name");
-        String desc = (String) request.getOrDefault("description", "");
-        String pattern = (String) request.get("eventTypePattern");
-        String logic = (String) request.get("handlerLogic");
-        String table = (String) request.get("targetTable");
-        return ResponseEntity.ok(projectionService.createProjection(id, name, desc, pattern, logic, table));
+    @GetMapping("/projections/{id}")
+    public ResponseEntity<?> getProjection(@PathVariable String id) {
+        return projectionService.getProjection(id)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
     }
 
-    @PostMapping("/projections/{id}/replay")
-    public ResponseEntity<?> replayProjection(@PathVariable String id) {
-        projectionService.triggerReplay(id);
-        return ResponseEntity.ok().build();
+    @PostMapping("/projections")
+    public ResponseEntity<?> createProjection(@RequestBody Map<String, Object> request) {
+        try {
+            String id = (String) request.get("projectionId");
+            String name = (String) request.get("name");
+            String desc = (String) request.getOrDefault("description", "");
+            String aggPattern = (String) request.getOrDefault("aggregateTypePattern", "*");
+            String evtPattern = (String) request.getOrDefault("eventTypePattern", "*");
+            
+            @SuppressWarnings("unchecked")
+            Map<String, String> expressions = (Map<String, String>) request.get("projectionExpressions");
+            
+            @SuppressWarnings("unchecked")
+            Map<String, Object> outputSchema = (Map<String, Object>) request.get("outputSchema");
+            
+            String strategyStr = (String) request.get("updateStrategy");
+            ProjectionEntity.UpdateStrategy strategy = strategyStr != null 
+                ? ProjectionEntity.UpdateStrategy.valueOf(strategyStr.toUpperCase())
+                : ProjectionEntity.UpdateStrategy.REALTIME;
+
+            return ResponseEntity.ok(projectionService.createProjection(
+                id, name, desc, aggPattern, evtPattern, expressions, outputSchema, strategy
+            ));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("success", false, "message", e.getMessage()));
+        }
+    }
+
+    @PutMapping("/projections/{id}")
+    public ResponseEntity<?> updateProjection(@PathVariable String id, @RequestBody Map<String, Object> request) {
+        try {
+            String name = (String) request.get("name");
+            String desc = (String) request.get("description");
+            String aggPattern = (String) request.get("aggregateTypePattern");
+            String evtPattern = (String) request.get("eventTypePattern");
+            
+            @SuppressWarnings("unchecked")
+            Map<String, String> expressions = (Map<String, String>) request.get("projectionExpressions");
+            
+            @SuppressWarnings("unchecked")
+            Map<String, Object> outputSchema = (Map<String, Object>) request.get("outputSchema");
+            
+            String strategyStr = (String) request.get("updateStrategy");
+            ProjectionEntity.UpdateStrategy strategy = strategyStr != null 
+                ? ProjectionEntity.UpdateStrategy.valueOf(strategyStr.toUpperCase())
+                : null;
+
+            return ResponseEntity.ok(projectionService.updateProjection(
+                id, name, desc, aggPattern, evtPattern, expressions, outputSchema, strategy
+            ));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("success", false, "message", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/projections/{id}/rebuild")
+    public ResponseEntity<?> rebuildProjection(@PathVariable String id) {
+        try {
+            projectionService.triggerRebuild(id);
+            return ResponseEntity.ok(Map.of("success", true, "message", "Rebuild triggered"));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("success", false, "message", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/projections/{id}/pause")
+    public ResponseEntity<?> pauseProjection(@PathVariable String id) {
+        try {
+            projectionService.pauseProjection(id);
+            return ResponseEntity.ok(Map.of("success", true, "message", "Projection paused"));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("success", false, "message", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/projections/{id}/resume")
+    public ResponseEntity<?> resumeProjection(@PathVariable String id) {
+        try {
+            projectionService.resumeProjection(id);
+            return ResponseEntity.ok(Map.of("success", true, "message", "Projection resumed"));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("success", false, "message", e.getMessage()));
+        }
     }
 
     @DeleteMapping("/projections/{id}")
     public ResponseEntity<?> deleteProjection(@PathVariable String id) {
         projectionService.deleteProjection(id);
-        return ResponseEntity.ok().build();
+        return ResponseEntity.ok(Map.of("success", true, "message", "Projection deleted"));
+    }
+
+    @GetMapping("/projections/{id}/data")
+    public ResponseEntity<?> queryMaterializedView(
+            @PathVariable String id,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int pageSize,
+            @RequestParam(required = false) String sortBy,
+            @RequestParam(defaultValue = "DESC") String sortOrder,
+            @RequestParam Map<String, String> allParams) {
+        try {
+            Map<String, String> filters = new java.util.HashMap<>();
+            for (Map.Entry<String, String> entry : allParams.entrySet()) {
+                String key = entry.getKey();
+                if (!"page".equals(key) && !"pageSize".equals(key) 
+                    && !"sortBy".equals(key) && !"sortOrder".equals(key)) {
+                    filters.put(key, entry.getValue());
+                }
+            }
+            return ResponseEntity.ok(projectionService.queryMaterializedView(
+                id, page, pageSize, sortBy, sortOrder, filters
+            ));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("success", false, "message", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/projections/{id}/pending-count")
+    public ResponseEntity<?> getPendingCount(@PathVariable String id) {
+        try {
+            long count = projectionService.getPendingCount(id);
+            return ResponseEntity.ok(Map.of("projectionId", id, "pendingCount", count));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("success", false, "message", e.getMessage()));
+        }
     }
 
     @GetMapping("/conflicts")
