@@ -39,7 +39,7 @@ public class StateComputationService {
                 .filter(e -> !e.getTimestamp().isAfter(timestamp))
                 .collect(Collectors.toList());
 
-        List<EventEntity> causallyConsistent = filterCausallyConsistent(eventsUpToTimestamp, timestamp);
+        List<EventEntity> causallyConsistent = filterCausallyConsistent(allEvents, eventsUpToTimestamp, timestamp);
 
         SnapshotPoint snapshotPoint = findBestSnapshot(aggregateId, timestamp);
 
@@ -139,11 +139,12 @@ public class StateComputationService {
         return objectMapper.convertValue(state, Map.class);
     }
 
-    private List<EventEntity> filterCausallyConsistent(List<EventEntity> events, Instant queryTimestamp) {
+    private List<EventEntity> filterCausallyConsistent(List<EventEntity> allEvents,
+                                                       List<EventEntity> eventsUpToTimestamp,
+                                                       Instant queryTimestamp) {
         List<EventEntity> result = new ArrayList<>();
-        VectorClock knownClock = null;
 
-        for (EventEntity event : events) {
+        for (EventEntity event : eventsUpToTimestamp) {
             VectorClock eventVc = event.getVectorClock();
             if (eventVc == null) {
                 result.add(event);
@@ -152,7 +153,7 @@ public class StateComputationService {
 
             boolean isCausallyDetermined = true;
 
-            for (EventEntity other : events) {
+            for (EventEntity other : allEvents) {
                 if (other.getEventId().equals(event.getEventId())) continue;
                 VectorClock otherVc = other.getVectorClock();
                 if (otherVc != null && otherVc.isConcurrent(eventVc)) {
@@ -165,11 +166,6 @@ public class StateComputationService {
 
             if (isCausallyDetermined) {
                 result.add(event);
-                if (knownClock == null) {
-                    knownClock = eventVc;
-                } else {
-                    knownClock = knownClock.merge(eventVc);
-                }
             }
         }
 
@@ -231,6 +227,8 @@ public class StateComputationService {
 
             if (value.isNull()) {
                 target.remove(key);
+            } else if (value.isObject() && target.has(key) && target.get(key).isObject()) {
+                applyMergePatch((ObjectNode) target.get(key), value);
             } else {
                 target.set(key, value);
             }

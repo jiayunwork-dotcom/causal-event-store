@@ -13,6 +13,10 @@ function applyMergePatch(target, patch) {
   for (const [key, value] of Object.entries(patch)) {
     if (value === null) {
       delete result[key]
+    } else if (typeof value === 'object' && !Array.isArray(value)
+               && typeof result[key] === 'object' && !Array.isArray(result[key])
+               && result[key] !== null) {
+      result[key] = applyMergePatch(result[key], value)
     } else {
       result[key] = value
     }
@@ -30,6 +34,45 @@ export default function ReplayConsole() {
   const [speed, setSpeed] = useState(1)
   const [inputAggId, setInputAggId] = useState('order-1')
   const playTimerRef = useRef(null)
+  const speedRef = useRef(1)
+
+  useEffect(() => {
+    speedRef.current = speed
+    if (playing && playTimerRef.current) {
+      clearInterval(playTimerRef.current)
+      const interval = 1000 / speedRef.current
+      playTimerRef.current = setInterval(() => {
+        setCurrentStep(prev => {
+          if (prev >= events.length - 1) {
+            setPlaying(false)
+            return prev
+          }
+          return prev + 1
+        })
+      }, interval)
+    }
+  }, [speed, playing, events.length])
+
+  useEffect(() => {
+    if (playing && events.length > 0) {
+      if (playTimerRef.current) clearInterval(playTimerRef.current)
+      const interval = 1000 / speedRef.current
+      playTimerRef.current = setInterval(() => {
+        setCurrentStep(prev => {
+          if (prev >= events.length - 1) {
+            setPlaying(false)
+            return prev
+          }
+          return prev + 1
+        })
+      }, interval)
+    } else {
+      if (playTimerRef.current) clearInterval(playTimerRef.current)
+    }
+    return () => {
+      if (playTimerRef.current) clearInterval(playTimerRef.current)
+    }
+  }, [playing, events.length])
 
   const computeStates = useCallback((evts) => {
     const result = [{}]
@@ -72,28 +115,6 @@ export default function ReplayConsole() {
       if (playTimerRef.current) clearInterval(playTimerRef.current)
     }
   }, [])
-
-  useEffect(() => {
-    if (playing && events.length > 0) {
-      if (playTimerRef.current) clearInterval(playTimerRef.current)
-      const interval = 1000 / speed
-      playTimerRef.current = setInterval(() => {
-        setCurrentStep(prev => {
-          if (prev >= events.length - 1) {
-            setPlaying(false)
-            if (playTimerRef.current) clearInterval(playTimerRef.current)
-            return prev
-          }
-          return prev + 1
-        })
-      }, interval)
-    } else {
-      if (playTimerRef.current) clearInterval(playTimerRef.current)
-    }
-    return () => {
-      if (playTimerRef.current) clearInterval(playTimerRef.current)
-    }
-  }, [playing, speed, events.length])
 
   const handlePlay = () => {
     if (currentStep >= events.length - 1) {
