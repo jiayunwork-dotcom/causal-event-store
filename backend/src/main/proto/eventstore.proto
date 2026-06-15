@@ -1,0 +1,138 @@
+syntax = "proto3";
+
+package causal.eventstore.v1;
+
+option java_multiple_files = true;
+option java_package = "com.causal.eventstore.grpc";
+option java_outer_classname = "EventStoreProto";
+
+service EventStoreService {
+  rpc AppendEvents(AppendEventsRequest) returns (AppendEventsResponse) {}
+  rpc ReadByAggregate(ReadByAggregateRequest) returns (ReadResponse) {}
+  rpc ReadCausal(ReadCausalRequest) returns (ReadResponse) {}
+  rpc Subscribe(SubscribeRequest) returns (stream Event) {}
+  rpc CreateSnapshot(CreateSnapshotRequest) returns (CreateSnapshotResponse) {}
+  rpc ListSnapshots(ListSnapshotsRequest) returns (ListSnapshotsResponse) {}
+  rpc GetClusterStatus(GetClusterStatusRequest) returns (GetClusterStatusResponse) {}
+}
+
+message VectorClock {
+  repeated int32 clocks = 1;
+}
+
+message Event {
+  string event_id = 1;
+  string aggregate_id = 2;
+  string aggregate_type = 3;
+  string event_type = 4;
+  string payload = 5;
+  int32 partition_id = 6;
+  int64 sequence_number = 7;
+  int64 global_sequence = 8;
+  VectorClock vector_clock = 9;
+  repeated string causal_dependencies = 10;
+  int64 timestamp = 11;
+}
+
+message EventWrite {
+  string event_id = 1;
+  string aggregate_id = 2;
+  string aggregate_type = 3;
+  string event_type = 4;
+  string payload = 5;
+  repeated string causal_dependencies = 6;
+  VectorClock client_vector_clock = 7;
+  int64 timestamp = 8;
+}
+
+message AppendEventsRequest {
+  repeated EventWrite events = 1;
+}
+
+message AppendEventsResponse {
+  bool success = 1;
+  string message = 2;
+  repeated string written_event_ids = 3;
+  VectorClock updated_vector_clock = 4;
+  repeated string missing_dependencies = 5;
+}
+
+message ReadByAggregateRequest {
+  string aggregate_id = 1;
+  int64 from_sequence = 2;
+}
+
+message ReadCausalRequest {
+  VectorClock start_vector = 1;
+  string consumer_id = 2;
+}
+
+message ReadResponse {
+  repeated Event events = 1;
+  VectorClock cursor = 2;
+}
+
+message SubscribeRequest {
+  string consumer_id = 1;
+  string event_pattern = 2;
+  VectorClock start_vector = 3;
+}
+
+message CreateSnapshotRequest {
+  string aggregate_id = 1;
+}
+
+message CreateSnapshotResponse {
+  bool success = 1;
+  int64 snapshot_id = 2;
+  int64 last_sequence = 3;
+  int64 size_bytes = 4;
+  int64 created_at = 5;
+}
+
+message ListSnapshotsRequest {
+  string aggregate_id = 1;
+}
+
+message SnapshotInfo {
+  int64 snapshot_id = 1;
+  string aggregate_id = 2;
+  int64 last_sequence = 3;
+  int64 size_bytes = 4;
+  int64 created_at = 5;
+}
+
+message ListSnapshotsResponse {
+  repeated SnapshotInfo snapshots = 1;
+}
+
+message GetClusterStatusRequest {}
+
+message ClusterNode {
+  string node_id = 1;
+  string node_role = 2;
+  string host = 3;
+  int32 grpc_port = 4;
+  int32 http_port = 5;
+  string status = 6;
+  int64 joined_at = 7;
+  int64 last_heartbeat = 8;
+}
+
+message PartitionInfo {
+  int32 partition_id = 1;
+  int64 event_count = 2;
+  int64 leader_sequence = 3;
+  map<string, int64> follower_sequences = 4;
+  map<string, int64> follower_lag_seconds = 5;
+}
+
+message GetClusterStatusResponse {
+  string local_node_id = 1;
+  string local_role = 2;
+  repeated ClusterNode nodes = 3;
+  repeated PartitionInfo partitions = 4;
+  int64 total_events = 5;
+  int64 total_aggregates = 6;
+  int64 timestamp = 7;
+}
