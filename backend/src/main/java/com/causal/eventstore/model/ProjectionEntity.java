@@ -159,6 +159,7 @@ public class ProjectionEntity {
         if (version == null) version = 1;
         if (versionStatus == null) versionStatus = VersionStatus.ACTIVE;
         if (baseProjectionId == null) baseProjectionId = projectionId;
+        if (healthStatus == null) healthStatus = HealthStatus.GREEN;
         if (processedVector != null) {
             this.processedVectorArray = processedVector.toIntArray();
         }

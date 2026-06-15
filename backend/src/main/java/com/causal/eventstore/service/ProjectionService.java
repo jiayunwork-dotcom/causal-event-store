@@ -594,18 +594,36 @@ public class ProjectionService {
                 projection.getProjectionId(), PendingProjectionEntity.PendingStatus.PENDING
             );
 
+        int processed = 0;
         for (PendingProjectionEntity pp : pending) {
+            long startMs = System.currentTimeMillis();
             try {
                 Optional<EventEntity> eventOpt = eventRepository.findById(pp.getEventId());
                 if (eventOpt.isPresent()) {
                     applyEventToMaterializedView(projection, eventOpt.get());
                     pp.setStatus(PendingProjectionEntity.PendingStatus.PROCESSED);
                     pp.setProcessedAt(Instant.now());
+                    long latency = System.currentTimeMillis() - startMs;
+                    metricsTracker.recordProcessing(projection.getProjectionId(), latency, true);
+                    processed++;
+                } else {
+                    pp.setStatus(PendingProjectionEntity.PendingStatus.FAILED);
+                    pp.setErrorMessage("Event not found");
+                    metricsTracker.recordProcessing(projection.getProjectionId(), 0, false);
                 }
             } catch (Exception e) {
                 log.warn("Failed to apply queued event during rebuild: {}", pp.getEventId(), e);
+                pp.setStatus(PendingProjectionEntity.PendingStatus.FAILED);
+                pp.setErrorMessage(e.getMessage());
+                metricsTracker.recordProcessing(projection.getProjectionId(), 0, false);
             }
             pendingProjectionRepository.save(pp);
+        }
+
+        if (processed > 0) {
+            projection.setProcessedCount(projection.getProcessedCount() + processed);
+            projection.setLastProcessedAt(Instant.now());
+            projectionRepository.save(projection);
         }
     }
 
@@ -1156,6 +1174,21 @@ public class ProjectionService {
             throw new IllegalArgumentException("版本尚未就绪");
         }
 
+        long pendingCount = pendingProjectionRepository
+            .countByProjectionIdAndStatus(target.getProjectionId(), PendingProjectionEntity.PendingStatus.PENDING);
+        if (pendingCount > 0) {
+            if (target.getUpstreamProjectionId() != null) {
+                processChainedUpdate(target);
+            } else {
+                processRealtimeUpdates(target);
+            }
+            pendingCount = pendingProjectionRepository
+                .countByProjectionIdAndStatus(target.getProjectionId(), PendingProjectionEntity.PendingStatus.PENDING);
+            if (pendingCount > 0) {
+                throw new IllegalArgumentException("版本尚未就绪");
+            }
+        }
+
         if (target.getVersionStatus() == ProjectionEntity.VersionStatus.ACTIVE) {
             return target;
         }
@@ -1167,10 +1200,14 @@ public class ProjectionService {
         if (currentActive != null) {
             currentActive.setVersionStatus(ProjectionEntity.VersionStatus.ARCHIVED);
             currentActive.setArchivedAt(Instant.now());
+            currentActive.setStatus(ProjectionEntity.ProjectionStatus.STOPPED);
             projectionRepository.save(currentActive);
         }
 
         target.setVersionStatus(ProjectionEntity.VersionStatus.ACTIVE);
+        if (target.getStatus() == ProjectionEntity.ProjectionStatus.STOPPED) {
+            target.setStatus(ProjectionEntity.ProjectionStatus.RUNNING);
+        }
         projectionRepository.save(target);
 
         return target;
@@ -1251,13 +1288,18 @@ public class ProjectionService {
                 .orElseThrow(() -> new IllegalArgumentException("Projection not found: " + projectionId));
         }
 
+        ProjectionEntity.HealthStatus health = p.getHealthStatus();
+        if (health == null) {
+            health = computeHealthStatus(p);
+        }
+
         Map<String, Object> metrics = new LinkedHashMap<>();
         metrics.put("projectionId", p.getProjectionId());
         metrics.put("avgLatencyMs", p.getAvgLatencyMs());
         metrics.put("throughputPerMin", p.getThroughputPerMin());
         metrics.put("errorRate", p.getErrorRate());
         metrics.put("mvRowCount", p.getMvRowCount());
-        metrics.put("healthStatus", p.getHealthStatus() != null ? p.getHealthStatus().name() : null);
+        metrics.put("healthStatus", health.name());
         metrics.put("metricsUpdatedAt", p.getMetricsUpdatedAt());
         metrics.put("status", p.getStatus().name());
         return metrics;
