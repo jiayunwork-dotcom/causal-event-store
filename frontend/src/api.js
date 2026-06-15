@@ -63,6 +63,12 @@ export const projectionApi = {
   delete: (id) => api.delete(`/projections/${id}`).then(r => r.data),
   getData: (id, params) => api.get(`/projections/${id}/data`, { params }).then(r => r.data),
   getPendingCount: (id) => api.get(`/projections/${id}/pending-count`).then(r => r.data),
+  getMetrics: (id) => api.get(`/projections/${id}/metrics`).then(r => r.data),
+  getChangelog: (id, params) => api.get(`/projections/${id}/changelog`, { params }).then(r => r.data),
+  listVersions: (id) => api.get(`/projections/${id}/versions`).then(r => r.data),
+  createVersion: (id, data) => api.post(`/projections/${id}/versions`, data).then(r => r.data),
+  activateVersion: (id, version) => api.post(`/projections/${id}/versions/${version}/activate`).then(r => r.data),
+  getVersionData: (id, version, params) => api.get(`/projections/${id}/versions/${version}/data`, { params }).then(r => r.data),
 }
 
 export const conflictApi = {

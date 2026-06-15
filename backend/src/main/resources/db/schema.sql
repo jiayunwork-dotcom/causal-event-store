@@ -79,10 +79,25 @@ CREATE TABLE IF NOT EXISTS projections (
     error_message TEXT,
     error_at TIMESTAMPTZ,
     rebuild_total_events BIGINT DEFAULT 0,
-    rebuild_processed_events BIGINT DEFAULT 0
+    rebuild_processed_events BIGINT DEFAULT 0,
+    upstream_projection_id VARCHAR(255),
+    pause_reason TEXT,
+    base_projection_id VARCHAR(255),
+    version INTEGER NOT NULL DEFAULT 1,
+    version_status VARCHAR(32) NOT NULL DEFAULT 'ACTIVE',
+    archived_at TIMESTAMPTZ,
+    avg_latency_ms DOUBLE PRECISION,
+    throughput_per_min DOUBLE PRECISION,
+    error_rate DOUBLE PRECISION,
+    mv_row_count BIGINT,
+    metrics_updated_at TIMESTAMPTZ,
+    health_status VARCHAR(16)
 );
 
 CREATE INDEX IF NOT EXISTS idx_projections_status ON projections(status);
+CREATE INDEX IF NOT EXISTS idx_projections_base ON projections(base_projection_id, version);
+CREATE INDEX IF NOT EXISTS idx_projections_upstream ON projections(upstream_projection_id);
+CREATE INDEX IF NOT EXISTS idx_projections_version_status ON projections(base_projection_id, version_status);
 
 CREATE TABLE IF NOT EXISTS pending_projections (
     id BIGSERIAL PRIMARY KEY,
@@ -166,3 +181,18 @@ DROP TRIGGER IF EXISTS trg_events_notify ON events;
 CREATE TRIGGER trg_events_notify
 AFTER INSERT ON events
 FOR EACH ROW EXECUTE FUNCTION notify_event_insert();
+
+CREATE TABLE IF NOT EXISTS mv_changelog (
+    id BIGSERIAL PRIMARY KEY,
+    projection_id VARCHAR(255) NOT NULL,
+    aggregate_id VARCHAR(255) NOT NULL,
+    change_type VARCHAR(16) NOT NULL,
+    before_value JSONB,
+    after_value JSONB,
+    trigger_event_id VARCHAR(64),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_mv_changelog_projection ON mv_changelog(projection_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_mv_changelog_aggregate ON mv_changelog(projection_id, aggregate_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_mv_changelog_time ON mv_changelog(created_at DESC);

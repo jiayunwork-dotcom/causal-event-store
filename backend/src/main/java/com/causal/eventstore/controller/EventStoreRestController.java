@@ -249,6 +249,7 @@ public class EventStoreRestController {
             String desc = (String) request.getOrDefault("description", "");
             String aggPattern = (String) request.getOrDefault("aggregateTypePattern", "*");
             String evtPattern = (String) request.getOrDefault("eventTypePattern", "*");
+            String upstreamProjectionId = (String) request.get("upstreamProjectionId");
             
             @SuppressWarnings("unchecked")
             Map<String, String> expressions = (Map<String, String>) request.get("projectionExpressions");
@@ -262,7 +263,7 @@ public class EventStoreRestController {
                 : ProjectionEntity.UpdateStrategy.REALTIME;
 
             return ResponseEntity.ok(projectionService.createProjection(
-                id, name, desc, aggPattern, evtPattern, expressions, outputSchema, strategy
+                id, name, desc, aggPattern, evtPattern, expressions, outputSchema, strategy, upstreamProjectionId
             ));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("success", false, "message", e.getMessage()));
@@ -362,6 +363,90 @@ public class EventStoreRestController {
         try {
             long count = projectionService.getPendingCount(id);
             return ResponseEntity.ok(Map.of("projectionId", id, "pendingCount", count));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("success", false, "message", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/projections/{id}/metrics")
+    public ResponseEntity<?> getProjectionMetrics(@PathVariable String id) {
+        try {
+            return ResponseEntity.ok(projectionService.getProjectionMetrics(id));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("success", false, "message", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/projections/{id}/changelog")
+    public ResponseEntity<?> queryChangelog(
+            @PathVariable String id,
+            @RequestParam(required = false) String aggregateId,
+            @RequestParam(required = false) String startTime,
+            @RequestParam(required = false) String endTime,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int pageSize) {
+        try {
+            java.time.Instant start = startTime != null ? java.time.Instant.parse(startTime) : null;
+            java.time.Instant end = endTime != null ? java.time.Instant.parse(endTime) : null;
+            return ResponseEntity.ok(projectionService.queryChangelog(id, aggregateId, start, end, page, pageSize));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("success", false, "message", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("success", false, "message", "Invalid time format: " + e.getMessage()));
+        }
+    }
+
+    @GetMapping("/projections/{id}/versions")
+    public ResponseEntity<?> listProjectionVersions(@PathVariable String id) {
+        return ResponseEntity.ok(projectionService.listProjectionVersions(id));
+    }
+
+    @PostMapping("/projections/{id}/versions")
+    public ResponseEntity<?> createProjectionVersion(@PathVariable String id, @RequestBody Map<String, Object> request) {
+        try {
+            @SuppressWarnings("unchecked")
+            Map<String, String> expressions = (Map<String, String>) request.get("projectionExpressions");
+
+            @SuppressWarnings("unchecked")
+            Map<String, Object> outputSchema = (Map<String, Object>) request.get("outputSchema");
+
+            return ResponseEntity.ok(projectionService.createProjectionVersion(id, expressions, outputSchema));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("success", false, "message", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/projections/{id}/versions/{version}/activate")
+    public ResponseEntity<?> activateProjectionVersion(@PathVariable String id, @PathVariable int version) {
+        try {
+            return ResponseEntity.ok(projectionService.activateProjectionVersion(id, version));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("success", false, "message", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/projections/{id}/versions/{version}/data")
+    public ResponseEntity<?> queryMaterializedViewByVersion(
+            @PathVariable String id,
+            @PathVariable int version,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int pageSize,
+            @RequestParam(required = false) String sortBy,
+            @RequestParam(defaultValue = "DESC") String sortOrder,
+            @RequestParam Map<String, String> allParams) {
+        try {
+            Map<String, String> filters = new java.util.HashMap<>();
+            for (Map.Entry<String, String> entry : allParams.entrySet()) {
+                String key = entry.getKey();
+                if (!"page".equals(key) && !"pageSize".equals(key)
+                    && !"sortBy".equals(key) && !"sortOrder".equals(key)
+                    && !"version".equals(key)) {
+                    filters.put(key, entry.getValue());
+                }
+            }
+            return ResponseEntity.ok(projectionService.queryMaterializedViewByVersion(
+                id, version, page, pageSize, sortBy, sortOrder, filters
+            ));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("success", false, "message", e.getMessage()));
         }

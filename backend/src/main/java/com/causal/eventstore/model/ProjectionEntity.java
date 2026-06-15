@@ -27,6 +27,14 @@ public class ProjectionEntity {
         REALTIME, BATCH
     }
 
+    public enum VersionStatus {
+        ACTIVE, STANDBY, ARCHIVED
+    }
+
+    public enum HealthStatus {
+        GREEN, YELLOW, RED
+    }
+
     @Id
     @Column(name = "projection_id", length = 255)
     private String projectionId;
@@ -93,6 +101,44 @@ public class ProjectionEntity {
     @Column(name = "rebuild_processed_events")
     private Long rebuildProcessedEvents;
 
+    @Column(name = "upstream_projection_id")
+    private String upstreamProjectionId;
+
+    @Column(name = "pause_reason", columnDefinition = "TEXT")
+    private String pauseReason;
+
+    @Column(name = "base_projection_id")
+    private String baseProjectionId;
+
+    @Column(name = "version", nullable = false)
+    private Integer version;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "version_status", length = 32, nullable = false)
+    private VersionStatus versionStatus;
+
+    @Column(name = "archived_at")
+    private Instant archivedAt;
+
+    @Column(name = "avg_latency_ms")
+    private Double avgLatencyMs;
+
+    @Column(name = "throughput_per_min")
+    private Double throughputPerMin;
+
+    @Column(name = "error_rate")
+    private Double errorRate;
+
+    @Column(name = "mv_row_count")
+    private Long mvRowCount;
+
+    @Column(name = "metrics_updated_at")
+    private Instant metricsUpdatedAt;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "health_status", length = 16)
+    private HealthStatus healthStatus;
+
     @Transient
     private VectorClock processedVector;
 
@@ -110,6 +156,9 @@ public class ProjectionEntity {
         if (updateStrategy == null) updateStrategy = UpdateStrategy.REALTIME;
         if (aggregateTypePattern == null) aggregateTypePattern = "*";
         if (eventTypePattern == null) eventTypePattern = "*";
+        if (version == null) version = 1;
+        if (versionStatus == null) versionStatus = VersionStatus.ACTIVE;
+        if (baseProjectionId == null) baseProjectionId = projectionId;
         if (processedVector != null) {
             this.processedVectorArray = processedVector.toIntArray();
         }
