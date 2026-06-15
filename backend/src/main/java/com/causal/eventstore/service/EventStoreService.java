@@ -121,8 +121,11 @@ public class EventStoreService {
         updatePartitionSequences(partitionSequences);
         updateAggregates(aggregates, aggregateSequences);
 
-        List<EventEntity> savedEvents = eventRepository.saveAll(writtenEvents.values());
+        eventRepository.saveAll(writtenEvents.values());
         eventRepository.flush();
+
+        List<String> savedIds = new ArrayList<>(writtenEvents.keySet());
+        List<EventEntity> savedEvents = eventRepository.findByEventIdIn(savedIds);
 
         for (EventEntity event : savedEvents) {
             try {

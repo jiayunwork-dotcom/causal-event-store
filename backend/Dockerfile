@@ -5,10 +5,13 @@ RUN mvn -B -e -C -T 1C org.apache.maven.plugins:maven-dependency-plugin:3.6.1:go
 COPY src ./src
 RUN mvn -B -e -T 1C clean package -DskipTests
 
-FROM amazoncorretto:17-alpine-jre
+FROM alpine:3.19
 WORKDIR /app
 ENV TZ=Asia/Shanghai
 RUN apk add --no-cache tzdata curl
+COPY --from=builder /opt/java/openjdk /opt/java/openjdk
+ENV JAVA_HOME=/opt/java/openjdk
+ENV PATH="${JAVA_HOME}/bin:${PATH}"
 COPY --from=builder /app/target/*.jar /app/app.jar
 EXPOSE 8080 9090
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \

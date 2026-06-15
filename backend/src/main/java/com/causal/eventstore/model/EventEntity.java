@@ -56,8 +56,7 @@ public class EventEntity {
     @Column(name = "partition_sequence_number", nullable = false)
     private Long partitionSequenceNumber;
 
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "global_sequence", columnDefinition = "BIGSERIAL")
+    @Column(name = "global_sequence", insertable = false, updatable = false, columnDefinition = "BIGSERIAL")
     private Long globalSequence;
 
     @JdbcTypeCode(SqlTypes.ARRAY)
