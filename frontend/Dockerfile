@@ -1,6 +1,7 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
 COPY package.json package-lock.json* ./
+COPY .npmrc ./
 RUN npm install --no-audit --no-fund --loglevel=error
 COPY . .
 RUN npm run build
