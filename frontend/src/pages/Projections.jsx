@@ -295,7 +295,7 @@ export default function Projections() {
               />
             </div>
             <div>
-              <label className="label">投影表达式 (JSON Path, JSON格式: {"字段名": "$.path.to.field"})</label>
+              <label className="label">投影表达式 (JSON Path, JSON格式: {'{'}&#34;字段名&#34;: &#34;$.path.to.field&#34;{'}'})</label>
               <textarea
                 className="input font-mono text-xs"
                 rows={6}
@@ -308,7 +308,7 @@ export default function Projections() {
               </p>
             </div>
             <div>
-              <label className="label">输出 Schema (JSON格式: {"fields": {"字段名": {"type": "string"}}})</label>
+              <label className="label">输出 Schema (JSON格式: {'{'}&#34;fields&#34;: {'{'}&#34;字段名&#34;: {'{'}&#34;type&#34;: &#34;string&#34;{'}'}{'}'}{'}'}) </label>
               <textarea
                 className="input font-mono text-xs"
                 rows={6}
