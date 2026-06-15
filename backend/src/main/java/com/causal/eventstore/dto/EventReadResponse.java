@@ -21,6 +21,7 @@ public class EventReadResponse {
     private String payload;
     private Integer partitionId;
     private Long sequenceNumber;
+    private Long partitionSequenceNumber;
     private Long globalSequence;
     private VectorClock vectorClock;
     private List<String> causalDependencies;

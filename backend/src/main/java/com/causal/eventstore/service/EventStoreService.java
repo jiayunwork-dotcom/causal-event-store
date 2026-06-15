@@ -107,6 +107,7 @@ public class EventStoreService {
                     .payload(request.getPayload() != null ? request.getPayload() : "{}")
                     .partitionId(partitionId)
                     .sequenceNumber(aggregateSeq)
+                    .partitionSequenceNumber(partitionSeq)
                     .timestamp(request.getTimestamp() != null ? request.getTimestamp() : Instant.now())
                     .causalDependencies(request.getCausalDependencies() != null ? request.getCausalDependencies() : new ArrayList<>())
                     .build();
@@ -279,13 +280,15 @@ public class EventStoreService {
     public List<EventReadResponse> readCausal(VectorClock startVector) {
         int dims = partitionService.getPartitionCount();
         Long maxGlobalSeq = eventRepository.findMaxGlobalSequence().orElse(0L);
+        if (maxGlobalSeq == null) maxGlobalSeq = 0L;
 
         List<EventEntity> allCandidates = new ArrayList<>();
         long batchSize = 1000;
         for (long gs = 0; gs <= maxGlobalSeq; gs += batchSize) {
             List<EventEntity> batch = eventRepository.findByGlobalSequenceGreaterThanOrderByGlobalSequenceAsc(gs);
             for (EventEntity e : batch) {
-                if (e.getGlobalSequence() <= gs + batchSize && e.getVectorClock() != null
+                Long eGs = e.getGlobalSequence();
+                if ((eGs == null || eGs <= gs + batchSize) && e.getVectorClock() != null
                         && e.getVectorClock().strictlyGreaterThan(startVector)) {
                     allCandidates.add(e);
                 }
@@ -322,12 +325,12 @@ public class EventStoreService {
 
         List<EventEntity> vcSorted = events.stream()
                 .sorted(Comparator.comparing((EventEntity e) -> sumVc(e.getVectorClock()))
-                        .thenComparing(EventEntity::getGlobalSequence))
+                        .thenComparing(e -> e.getGlobalSequence() != null ? e.getGlobalSequence() : Long.MAX_VALUE))
                 .collect(Collectors.toList());
 
         PriorityQueue<EventEntity> queue = new PriorityQueue<>(
                 Comparator.comparing((EventEntity e) -> sumVc(e.getVectorClock()))
-                        .thenComparing(EventEntity::getGlobalSequence));
+                        .thenComparing(e -> e.getGlobalSequence() != null ? e.getGlobalSequence() : Long.MAX_VALUE));
 
         for (EventEntity e : vcSorted) {
             if (inDegree.get(e.getEventId()) == 0) {
@@ -370,6 +373,7 @@ public class EventStoreService {
                 .payload(e.getPayload())
                 .partitionId(e.getPartitionId())
                 .sequenceNumber(e.getSequenceNumber())
+                .partitionSequenceNumber(e.getPartitionSequenceNumber())
                 .globalSequence(e.getGlobalSequence())
                 .vectorClock(e.getVectorClock())
                 .causalDependencies(e.getCausalDependencies())

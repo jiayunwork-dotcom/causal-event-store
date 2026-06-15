@@ -20,10 +20,10 @@ public interface EventRepository extends JpaRepository<EventEntity, String> {
 
     Optional<EventEntity> findByAggregateIdAndSequenceNumber(String aggregateId, Long sequenceNumber);
 
-    List<EventEntity> findByPartitionIdAndSequenceNumberGreaterThanOrderBySequenceNumberAsc(
-            Integer partitionId, Long sequenceNumber);
+    List<EventEntity> findByPartitionIdAndPartitionSequenceNumberGreaterThanOrderByPartitionSequenceNumberAsc(
+            Integer partitionId, Long partitionSequenceNumber);
 
-    Optional<EventEntity> findByPartitionIdAndSequenceNumber(Integer partitionId, Long sequenceNumber);
+    Optional<EventEntity> findByPartitionIdAndPartitionSequenceNumber(Integer partitionId, Long partitionSequenceNumber);
 
     @Query("SELECT e FROM EventEntity e WHERE e.eventType LIKE :pattern ORDER BY e.globalSequence ASC")
     List<EventEntity> findByEventTypeLike(@Param("pattern") String pattern);

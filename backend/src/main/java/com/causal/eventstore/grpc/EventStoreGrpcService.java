@@ -4,15 +4,24 @@ import com.causal.eventstore.dto.AppendResult;
 import com.causal.eventstore.dto.EventWriteRequest;
 import com.causal.eventstore.exception.BatchSizeExceededException;
 import com.causal.eventstore.exception.DependencyCheckException;
-import com.causal.eventstore.model.*;
-import com.causal.eventstore.service.*;
+import com.causal.eventstore.model.AggregateEntity;
+import com.causal.eventstore.model.ClusterNodeEntity;
+import com.causal.eventstore.model.ReplicationStatusEntity;
+import com.causal.eventstore.model.SnapshotEntity;
+import com.causal.eventstore.service.ClusterService;
+import com.causal.eventstore.service.EventStoreService;
+import com.causal.eventstore.service.PartitionService;
+import com.causal.eventstore.service.SnapshotService;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 import lombok.extern.slf4j.Slf4j;
 import net.devh.boot.grpc.server.service.GrpcService;
 
 import java.time.Instant;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @GrpcService
@@ -113,7 +122,7 @@ public class EventStoreGrpcService extends EventStoreServiceGrpc.EventStoreServi
         try {
             List<Integer> clocks = request.hasStartVector() ? request.getStartVector().getClocksList()
                     : Collections.emptyList();
-            VectorClock vc = new VectorClock(new ArrayList<>(clocks));
+            com.causal.eventstore.model.VectorClock vc = new com.causal.eventstore.model.VectorClock(new ArrayList<>(clocks));
 
             List<com.causal.eventstore.dto.EventReadResponse> events = eventStoreService.readCausal(vc);
             ReadResponse.Builder resp = ReadResponse.newBuilder();

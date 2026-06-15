@@ -16,10 +16,10 @@ import java.util.UUID;
 @Entity
 @Table(name = "events", uniqueConstraints = {
     @UniqueConstraint(columnNames = {"aggregate_id", "sequence_number"}),
-    @UniqueConstraint(columnNames = {"partition_id", "sequence_number"})
+    @UniqueConstraint(columnNames = {"partition_id", "partition_sequence_number"})
 }, indexes = {
     @Index(name = "idx_events_aggregate", columnList = "aggregate_id, sequence_number"),
-    @Index(name = "idx_events_partition", columnList = "partition_id, sequence_number"),
+    @Index(name = "idx_events_partition", columnList = "partition_id, partition_sequence_number"),
     @Index(name = "idx_events_type", columnList = "event_type"),
     @Index(name = "idx_events_timestamp", columnList = "timestamp"),
     @Index(name = "idx_events_global_seq", columnList = "global_sequence")
@@ -53,7 +53,11 @@ public class EventEntity {
     @Column(name = "sequence_number", nullable = false)
     private Long sequenceNumber;
 
-    @Column(name = "global_sequence")
+    @Column(name = "partition_sequence_number", nullable = false)
+    private Long partitionSequenceNumber;
+
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "global_sequence", columnDefinition = "BIGSERIAL")
     private Long globalSequence;
 
     @JdbcTypeCode(SqlTypes.ARRAY)

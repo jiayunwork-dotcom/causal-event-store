@@ -14,16 +14,17 @@ CREATE TABLE IF NOT EXISTS events (
     payload JSONB NOT NULL,
     partition_id INTEGER NOT NULL,
     sequence_number BIGINT NOT NULL,
+    partition_sequence_number BIGINT NOT NULL,
     global_sequence BIGSERIAL,
     vector_clock INTEGER[] NOT NULL,
     causal_dependencies VARCHAR(64)[] NOT NULL DEFAULT '{}',
     timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     UNIQUE (aggregate_id, sequence_number),
-    UNIQUE (partition_id, sequence_number)
+    UNIQUE (partition_id, partition_sequence_number)
 );
 
 CREATE INDEX IF NOT EXISTS idx_events_aggregate ON events(aggregate_id, sequence_number);
-CREATE INDEX IF NOT EXISTS idx_events_partition ON events(partition_id, sequence_number);
+CREATE INDEX IF NOT EXISTS idx_events_partition ON events(partition_id, partition_sequence_number);
 CREATE INDEX IF NOT EXISTS idx_events_type ON events(event_type);
 CREATE INDEX IF NOT EXISTS idx_events_timestamp ON events(timestamp);
 CREATE INDEX IF NOT EXISTS idx_events_global_seq ON events(global_sequence);

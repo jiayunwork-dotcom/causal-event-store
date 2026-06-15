@@ -137,7 +137,9 @@ export default function EventBrowser() {
                 <Detail label="事件ID" value={selected.eventId} mono />
                 <Detail label="聚合根" value={selected.aggregateId} />
                 <Detail label="类型" value={<span className="badge badge-info">{selected.eventType}</span>} />
-                <Detail label="序列号" value={`P${selected.partitionId} / #${selected.sequenceNumber} / GS#${selected.globalSequence}`} mono />
+                <Detail label="聚合根内序列号" value={`#${selected.sequenceNumber}`} mono />
+                <Detail label="分区内序列号" value={`P${selected.partitionId} / #${selected.partitionSequenceNumber}`} mono />
+                <Detail label="全局序列号" value={selected.globalSequence != null ? `#${selected.globalSequence}` : '未分配'} mono />
                 <Detail label="时间" value={fmtTs(selected.timestamp)} />
                 <div>
                   <label className="label">向量时钟</label>
