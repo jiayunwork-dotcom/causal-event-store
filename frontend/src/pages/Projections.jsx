@@ -455,102 +455,65 @@ export default function Projections() {
                           <table className="w-full text-sm">
                             <thead>
                               <tr className="border-b border-slate-200">
-                                <th
-                                  className="text-left py-2 px-3 font-medium text-slate-600 cursor-pointer hover:bg-slate-50"
-                                  onClick={() => handleSort('aggregateId')}
-                                >
-                                  <div className="flex items-center gap-1">
-                                    aggregateId
-                                    {sortBy === 'aggregateId' && <ArrowUpDown size={12}/>}
-                                  </div>
-                                </th>
-                                <th
-                                  className="text-left py-2 px-3 font-medium text-slate-600 cursor-pointer hover:bg-slate-50"
-                                  onClick={() => handleSort('aggregateType')}
-                                >
-                                  <div className="flex items-center gap-1">
-                                    aggregateType
-                                    {sortBy === 'aggregateType' && <ArrowUpDown size={12}/>}
-                                  </div>
-                                </th>
-                                {schemaFields.map(f => (
-                                  <th
-                                    key={f.name}
-                                    className="text-left py-2 px-3 font-medium text-slate-600 cursor-pointer hover:bg-slate-50"
-                                    onClick={() => handleSort(f.name)}
-                                  >
-                                    <div className="flex items-center gap-1">
-                                      {f.name}
-                                      <span className="text-xs text-slate-400 font-normal">({f.type})</span>
-                                      {sortBy === f.name && <ArrowUpDown size={12}/>}
-                                    </div>
+                                {schemaFields.length === 0 ? (
+                                  <th className="text-left py-2 px-3 font-medium text-slate-600">
+                                    (无字段定义)
                                   </th>
-                                ))}
-                                <th
-                                  className="text-left py-2 px-3 font-medium text-slate-600 cursor-pointer hover:bg-slate-50"
-                                  onClick={() => handleSort('updatedAt')}
-                                >
-                                  <div className="flex items-center gap-1">
-                                    updatedAt
-                                    {sortBy === 'updatedAt' && <ArrowUpDown size={12}/>}
-                                  </div>
-                                </th>
+                                ) : (
+                                  schemaFields.map(f => (
+                                    <th
+                                      key={f.name}
+                                      className="text-left py-2 px-3 font-medium text-slate-600 cursor-pointer hover:bg-slate-50"
+                                      onClick={() => handleSort(f.name)}
+                                    >
+                                      <div className="flex items-center gap-1">
+                                        {f.name}
+                                        <span className="text-xs text-slate-400 font-normal">({f.type})</span>
+                                        {sortBy === f.name && <ArrowUpDown size={12}/>}
+                                      </div>
+                                    </th>
+                                  ))
+                                )}
                               </tr>
-                              <tr className="border-b border-slate-100 bg-slate-50">
-                                <th className="py-1.5 px-3">
-                                  <input
-                                    className="input text-xs py-1"
-                                    placeholder="筛选..."
-                                    value={filters.aggregateId || ''}
-                                    onChange={e => handleFilterChange('aggregateId', e.target.value)}
-                                  />
-                                </th>
-                                <th className="py-1.5 px-3">
-                                  <input
-                                    className="input text-xs py-1"
-                                    placeholder="筛选..."
-                                    value={filters.aggregateType || ''}
-                                    onChange={e => handleFilterChange('aggregateType', e.target.value)}
-                                  />
-                                </th>
-                                {schemaFields.map(f => (
-                                  <th key={f.name} className="py-1.5 px-3">
-                                    <input
-                                      className="input text-xs py-1"
-                                      placeholder="筛选..."
-                                      value={filters[f.name] || ''}
-                                      onChange={e => handleFilterChange(f.name, e.target.value)}
-                                    />
-                                  </th>
-                                ))}
-                                <th className="py-1.5 px-3"></th>
-                              </tr>
+                              {schemaFields.length > 0 && (
+                                <tr className="border-b border-slate-100 bg-slate-50">
+                                  {schemaFields.map(f => (
+                                    <th key={f.name} className="py-1.5 px-3">
+                                      <input
+                                        className="input text-xs py-1"
+                                        placeholder="筛选..."
+                                        value={filters[f.name] || ''}
+                                        onChange={e => handleFilterChange(f.name, e.target.value)}
+                                      />
+                                    </th>
+                                  ))}
+                                </tr>
+                              )}
                             </thead>
                             <tbody>
                               {data.rows?.length === 0 ? (
                                 <tr>
-                                  <td colSpan={schemaFields.length + 3} className="text-center py-6 text-slate-400">
+                                  <td colSpan={schemaFields.length || 1} className="text-center py-6 text-slate-400">
                                     暂无数据
                                   </td>
                                 </tr>
                               ) : (
                                 data.rows?.map((row, idx) => (
                                   <tr key={idx} className="border-b border-slate-50 hover:bg-slate-50">
-                                    <td className="py-2 px-3 font-mono text-xs">{row.aggregateId}</td>
-                                    <td className="py-2 px-3 text-xs">{row.aggregateType}</td>
-                                    {schemaFields.map(f => (
-                                      <td key={f.name} className="py-2 px-3 text-xs">
-                                        {row[f.name] !== undefined && row[f.name] !== null
-                                          ? (typeof row[f.name] === 'object'
-                                              ? JSON.stringify(row[f.name])
-                                              : String(row[f.name]))
-                                          : <span className="text-slate-300">null</span>
-                                        }
-                                      </td>
-                                    ))}
-                                    <td className="py-2 px-3 text-xs text-slate-500">
-                                      {fmtTs(row.updatedAt)}
-                                    </td>
+                                    {schemaFields.length === 0 ? (
+                                      <td className="py-2 px-3 text-xs text-slate-400">(无字段)</td>
+                                    ) : (
+                                      schemaFields.map(f => (
+                                        <td key={f.name} className="py-2 px-3 text-xs">
+                                          {row[f.name] !== null && row[f.name] !== undefined
+                                            ? (typeof row[f.name] === 'object'
+                                                ? JSON.stringify(row[f.name])
+                                                : String(row[f.name]))
+                                            : <span className="text-slate-300">null</span>
+                                          }
+                                        </td>
+                                      ))
+                                    )}
                                   </tr>
                                 ))
                               )}

@@ -170,9 +170,14 @@ public class ProjectionService {
         p.setStatus(ProjectionEntity.ProjectionStatus.REBUILDING);
         p.setRebuildTotalEvents(totalEvents);
         p.setRebuildProcessedEvents(0L);
+        p.setProcessedVector(new VectorClock(appConfig.getPartitions()));
+        p.setLastProcessedEventId(null);
+        p.setProcessedCount(0L);
+        p.setLastProcessedAt(null);
         p.setErrorMessage(null);
         p.setErrorAt(null);
         projectionRepository.save(p);
+        projectionRepository.flush();
     }
 
     private long countMatchingEvents(ProjectionEntity projection) {
@@ -509,9 +514,16 @@ public class ProjectionService {
         countSql.append("SELECT COUNT(*) FROM ").append(projection.getTargetTable());
 
         StringBuilder dataSql = new StringBuilder();
-        dataSql.append("SELECT aggregate_id, aggregate_type, last_event_id, last_event_type, updated_at");
-        for (String field : fieldNames) {
-            dataSql.append(", ").append(escapeIdentifier(field));
+        dataSql.append("SELECT ");
+        if (fieldNames.isEmpty()) {
+            dataSql.append("aggregate_id");
+        } else {
+            boolean first = true;
+            for (String field : fieldNames) {
+                if (!first) dataSql.append(", ");
+                dataSql.append(escapeIdentifier(field));
+                first = false;
+            }
         }
         dataSql.append(" FROM ").append(projection.getTargetTable());
 
@@ -523,9 +535,7 @@ public class ProjectionService {
                 String val = entry.getValue();
                 if (val == null || val.isEmpty()) continue;
 
-                boolean isSchemaField = fieldNames.contains(col) || "aggregate_id".equals(col) 
-                    || "aggregate_type".equals(col) || "last_event_type".equals(col);
-                if (!isSchemaField) continue;
+                if (!fieldNames.contains(col)) continue;
 
                 if (first) {
                     countSql.append(" WHERE ");
@@ -550,17 +560,11 @@ public class ProjectionService {
             }
         }
 
-        if (sortBy != null && !sortBy.isEmpty()) {
-            boolean sortable = fieldNames.contains(sortBy) || "aggregate_id".equals(sortBy)
-                || "aggregate_type".equals(sortBy) || "updated_at".equals(sortBy);
-            if (sortable) {
-                String order = "DESC".equalsIgnoreCase(sortOrder) ? "DESC" : "ASC";
-                dataSql.append(" ORDER BY ").append(escapeIdentifier(sortBy)).append(" ").append(order);
-            } else {
-                dataSql.append(" ORDER BY updated_at DESC");
-            }
-        } else {
-            dataSql.append(" ORDER BY updated_at DESC");
+        if (sortBy != null && !sortBy.isEmpty() && fieldNames.contains(sortBy)) {
+            String order = "DESC".equalsIgnoreCase(sortOrder) ? "DESC" : "ASC";
+            dataSql.append(" ORDER BY ").append(escapeIdentifier(sortBy)).append(" ").append(order);
+        } else if (!fieldNames.isEmpty()) {
+            dataSql.append(" ORDER BY ").append(escapeIdentifier(fieldNames.get(0))).append(" ASC");
         }
 
         if (pageSize > 0) {
@@ -592,15 +596,9 @@ public class ProjectionService {
                 try (ResultSet rs = ps.executeQuery()) {
                     while (rs.next()) {
                         Map<String, Object> row = new LinkedHashMap<>();
-                        row.put("aggregateId", rs.getString("aggregate_id"));
-                        row.put("aggregateType", rs.getString("aggregate_type"));
-                        row.put("lastEventId", rs.getString("last_event_id"));
-                        row.put("lastEventType", rs.getString("last_event_type"));
-                        row.put("updatedAt", rs.getTimestamp("updated_at") != null 
-                            ? rs.getTimestamp("updated_at").toInstant() : null);
-
                         for (String field : fieldNames) {
-                            row.put(field, rs.getObject(field));
+                            Object value = rs.getObject(field);
+                            row.put(field, value);
                         }
                         rows.add(row);
                     }
