@@ -18,10 +18,20 @@ api.interceptors.response.use(
 
 export const eventApi = {
   append: (events) => api.post('/events', events).then(r => r.data),
-  readByAggregate: (aggregateId, fromSeq) =>
-    api.get(`/events/aggregate/${aggregateId}`, { params: { fromSequence: fromSeq } }).then(r => r.data),
+  readByAggregate: (aggregateId, fromSeq, tags, tagMode) =>
+    api.get(`/events/aggregate/${aggregateId}`, {
+      params: {
+        fromSequence: fromSeq || undefined,
+        tags: tags && tags.length > 0 ? tags.join(',') : undefined,
+        tagMode: tagMode || undefined,
+      }
+    }).then(r => r.data),
   readCausal: (vectorClock) => api.post('/events/causal', { vectorClock }).then(r => r.data),
   getCausalGraph: (eventIds) => api.post('/events/causal-graph', eventIds).then(r => r.data),
+  getStateAtTimestamp: (aggregateId, timestamp) =>
+    api.get(`/events/aggregate/${aggregateId}/at`, { params: { timestamp } }).then(r => r.data),
+  getReplayData: (aggregateId) =>
+    api.get(`/events/aggregate/${aggregateId}/replay`).then(r => r.data),
 }
 
 export const clusterApi = {

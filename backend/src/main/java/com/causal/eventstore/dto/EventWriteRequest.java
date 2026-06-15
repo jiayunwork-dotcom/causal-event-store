@@ -21,4 +21,5 @@ public class EventWriteRequest {
     private List<String> causalDependencies;
     private List<Integer> clientVectorClock;
     private Instant timestamp;
+    private List<String> tags;
 }

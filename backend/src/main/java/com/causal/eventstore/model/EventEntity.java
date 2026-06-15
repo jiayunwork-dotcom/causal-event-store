@@ -67,6 +67,10 @@ public class EventEntity {
     @Column(name = "causal_dependencies", columnDefinition = "varchar[]", nullable = true)
     private String[] causalDependenciesArray;
 
+    @JdbcTypeCode(SqlTypes.ARRAY)
+    @Column(name = "tags", columnDefinition = "varchar[]", nullable = true)
+    private String[] tagsArray;
+
     @Column(name = "timestamp", nullable = false)
     private Instant timestamp;
 
@@ -76,11 +80,17 @@ public class EventEntity {
     @Transient
     private List<String> causalDependencies;
 
+    @Transient
+    private List<String> tags;
+
     @PostLoad
     public void postLoad() {
         this.vectorClock = VectorClock.fromIntArray(this.vectorClockArray);
         this.causalDependencies = this.causalDependenciesArray != null
                 ? List.of(this.causalDependenciesArray)
+                : new ArrayList<>();
+        this.tags = this.tagsArray != null
+                ? List.of(this.tagsArray)
                 : new ArrayList<>();
     }
 
@@ -98,6 +108,9 @@ public class EventEntity {
         if (this.causalDependencies != null) {
             this.causalDependenciesArray = this.causalDependencies.toArray(new String[0]);
         }
+        if (this.tags != null) {
+            this.tagsArray = this.tags.toArray(new String[0]);
+        }
     }
 
     public void setVectorClock(VectorClock vectorClock) {
@@ -111,6 +124,13 @@ public class EventEntity {
         this.causalDependencies = causalDependencies;
         if (causalDependencies != null) {
             this.causalDependenciesArray = causalDependencies.toArray(new String[0]);
+        }
+    }
+
+    public void setTags(List<String> tags) {
+        this.tags = tags;
+        if (tags != null) {
+            this.tagsArray = tags.toArray(new String[0]);
         }
     }
 }

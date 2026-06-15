@@ -54,4 +54,11 @@ public interface EventRepository extends JpaRepository<EventEntity, String> {
 
     @Query("SELECT MAX(e.globalSequence) FROM EventEntity e")
     Optional<Long> findMaxGlobalSequence();
+
+    @Query("SELECT e FROM EventEntity e WHERE e.aggregateId = :aggregateId AND e.timestamp <= :timestamp ORDER BY e.sequenceNumber ASC")
+    List<EventEntity> findByAggregateIdAndTimestampBeforeOrderBySequenceNumberAsc(
+            @Param("aggregateId") String aggregateId, @Param("timestamp") Instant timestamp);
+
+    @Query("SELECT DISTINCT e FROM EventEntity e JOIN e.tagsArray t WHERE t IN :tags")
+    List<EventEntity> findByTagsContaining(@Param("tags") List<String> tags);
 }

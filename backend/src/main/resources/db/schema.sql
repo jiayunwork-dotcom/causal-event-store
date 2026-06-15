@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS events (
     global_sequence BIGSERIAL,
     vector_clock INTEGER[] NOT NULL,
     causal_dependencies VARCHAR(64)[] NOT NULL DEFAULT '{}',
+    tags VARCHAR(255)[] DEFAULT '{}',
     timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     UNIQUE (aggregate_id, sequence_number),
     UNIQUE (partition_id, partition_sequence_number)
@@ -28,6 +29,7 @@ CREATE INDEX IF NOT EXISTS idx_events_partition ON events(partition_id, partitio
 CREATE INDEX IF NOT EXISTS idx_events_type ON events(event_type);
 CREATE INDEX IF NOT EXISTS idx_events_timestamp ON events(timestamp);
 CREATE INDEX IF NOT EXISTS idx_events_global_seq ON events(global_sequence);
+CREATE INDEX IF NOT EXISTS idx_events_tags ON events USING GIN(tags);
 
 CREATE TABLE IF NOT EXISTS snapshots (
     snapshot_id BIGSERIAL PRIMARY KEY,

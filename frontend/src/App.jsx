@@ -1,7 +1,7 @@
 import React from 'react'
 import { BrowserRouter, Routes, Route, NavLink } from 'react-router-dom'
 import {
-  LayoutDashboard, ListTree, GitBranch, Bell, Eye, Camera, AlertTriangle, Server
+  LayoutDashboard, ListTree, GitBranch, Bell, Eye, Camera, AlertTriangle, Server, Rewind
 } from 'lucide-react'
 import ClusterOverview from './pages/ClusterOverview.jsx'
 import EventBrowser from './pages/EventBrowser.jsx'
@@ -10,6 +10,7 @@ import Subscriptions from './pages/Subscriptions.jsx'
 import Projections from './pages/Projections.jsx'
 import Snapshots from './pages/Snapshots.jsx'
 import Conflicts from './pages/Conflicts.jsx'
+import ReplayConsole from './pages/ReplayConsole.jsx'
 
 const NavItem = ({ to, label, icon: Icon }) => (
   <NavLink to={to}
@@ -44,6 +45,7 @@ export default function App() {
           <nav className="p-3 space-y-1">
             <NavItem to="/" label="集群概览" icon={LayoutDashboard} />
             <NavItem to="/events" label="事件浏览器" icon={ListTree} />
+            <NavItem to="/replay" label="回放控制台" icon={Rewind} />
             <NavItem to="/causal" label="因果图" icon={GitBranch} />
             <NavItem to="/subscriptions" label="订阅管理" icon={Bell} />
             <NavItem to="/projections" label="投影管理" icon={Eye} />
@@ -56,6 +58,7 @@ export default function App() {
             <Routes>
               <Route path="/" element={<ClusterOverview />} />
               <Route path="/events" element={<EventBrowser />} />
+              <Route path="/replay" element={<ReplayConsole />} />
               <Route path="/causal" element={<CausalGraph />} />
               <Route path="/subscriptions" element={<Subscriptions />} />
               <Route path="/projections" element={<Projections />} />

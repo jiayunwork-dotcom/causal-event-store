@@ -5,6 +5,7 @@ import com.causal.eventstore.model.EventEntity;
 import com.causal.eventstore.model.VectorClock;
 import com.causal.eventstore.repository.ConflictRepository;
 import com.causal.eventstore.repository.EventRepository;
+import com.causal.eventstore.dto.EventWriteRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

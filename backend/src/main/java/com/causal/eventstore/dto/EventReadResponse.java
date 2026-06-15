@@ -26,4 +26,5 @@ public class EventReadResponse {
     private VectorClock vectorClock;
     private List<String> causalDependencies;
     private Instant timestamp;
+    private List<String> tags;
 }

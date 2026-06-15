@@ -29,6 +29,7 @@ public class EventStoreRestController {
     private final ConflictDetectionService conflictDetectionService;
     private final ClusterService clusterService;
     private final EventRepository eventRepository;
+    private final StateComputationService stateComputationService;
 
     public EventStoreRestController(EventStoreService eventStoreService,
                                     SnapshotService snapshotService,
@@ -36,7 +37,8 @@ public class EventStoreRestController {
                                     ProjectionService projectionService,
                                     ConflictDetectionService conflictDetectionService,
                                     ClusterService clusterService,
-                                    EventRepository eventRepository) {
+                                    EventRepository eventRepository,
+                                    StateComputationService stateComputationService) {
         this.eventStoreService = eventStoreService;
         this.snapshotService = snapshotService;
         this.subscriptionService = subscriptionService;
@@ -44,6 +46,7 @@ public class EventStoreRestController {
         this.conflictDetectionService = conflictDetectionService;
         this.clusterService = clusterService;
         this.eventRepository = eventRepository;
+        this.stateComputationService = stateComputationService;
     }
 
     @PostMapping("/events")
@@ -62,8 +65,32 @@ public class EventStoreRestController {
     @GetMapping("/events/aggregate/{aggregateId}")
     public ResponseEntity<List<EventReadResponse>> readByAggregate(
             @PathVariable String aggregateId,
-            @RequestParam(required = false) Long fromSequence) {
+            @RequestParam(required = false) Long fromSequence,
+            @RequestParam(required = false) List<String> tags,
+            @RequestParam(required = false, defaultValue = "OR") String tagMode) {
+        if (tags != null && !tags.isEmpty()) {
+            return ResponseEntity.ok(eventStoreService.readByAggregateWithTags(aggregateId, fromSequence, tags, tagMode));
+        }
         return ResponseEntity.ok(eventStoreService.readByAggregate(aggregateId, fromSequence));
+    }
+
+    @GetMapping("/events/aggregate/{aggregateId}/at")
+    public ResponseEntity<?> getStateAtTimestamp(
+            @PathVariable String aggregateId,
+            @RequestParam String timestamp) {
+        try {
+            java.time.Instant ts = java.time.Instant.parse(timestamp);
+            Map<String, Object> state = stateComputationService.computeStateAtTimestamp(aggregateId, ts);
+            return ResponseEntity.ok(Map.of("aggregateId", aggregateId, "timestamp", timestamp, "state", state));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Invalid timestamp format: " + e.getMessage()));
+        }
+    }
+
+    @GetMapping("/events/aggregate/{aggregateId}/replay")
+    public ResponseEntity<?> getReplayData(@PathVariable String aggregateId) {
+        List<StateComputationService.StateAtStep> steps = stateComputationService.computeAllStates(aggregateId);
+        return ResponseEntity.ok(Map.of("aggregateId", aggregateId, "steps", steps));
     }
 
     @PostMapping("/events/causal")
@@ -139,6 +166,7 @@ public class EventStoreRestController {
                         .vectorClock(e.getVectorClock())
                         .causalDependencies(e.getCausalDependencies())
                         .timestamp(e.getTimestamp())
+                        .tags(e.getTags())
                         .build()).collect(Collectors.toList()))
                 .edges(edges)
                 .build();

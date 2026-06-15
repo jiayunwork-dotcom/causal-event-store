@@ -6,22 +6,23 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.io.Serializable;
 import java.time.Instant;
 
 @Entity
-@Table(name = "replication_status", primaryKeyColumns = {
-    @PrimaryKeyColumn(name = "partition_id"),
-    @PrimaryKeyColumn(name = "node_id")
-})
+@Table(name = "replication_status")
+@IdClass(ReplicationStatusEntity.ReplicationStatusId.class)
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class ReplicationStatusEntity {
 
+    @Id
     @Column(name = "partition_id", nullable = false)
     private Integer partitionId;
 
+    @Id
     @Column(name = "node_id", length = 255, nullable = false)
     private String nodeId;
 
@@ -41,5 +42,13 @@ public class ReplicationStatusEntity {
     public void prePersist() {
         if (lastHeartbeat == null) lastHeartbeat = Instant.now();
         if (lastAppliedSequence == null) lastAppliedSequence = 0L;
+    }
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class ReplicationStatusId implements Serializable {
+        private Integer partitionId;
+        private String nodeId;
     }
 }

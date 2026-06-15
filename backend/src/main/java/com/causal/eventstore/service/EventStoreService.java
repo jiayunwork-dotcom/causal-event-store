@@ -112,6 +112,7 @@ public class EventStoreService {
                     .causalDependencies(request.getCausalDependencies() != null ? request.getCausalDependencies() : new ArrayList<>())
                     .build();
             event.setVectorClock(mergedVc);
+            event.setTags(request.getTags() != null ? request.getTags() : new ArrayList<>());
             event.prePersist();
 
             writtenEvents.put(eventId, event);
@@ -280,6 +281,22 @@ public class EventStoreService {
         return events.stream().map(this::toReadResponse).collect(Collectors.toList());
     }
 
+    public List<EventReadResponse> readByAggregateWithTags(String aggregateId, Long fromSequence,
+                                                            List<String> tags, String tagMode) {
+        List<EventReadResponse> all = readByAggregate(aggregateId, fromSequence);
+        if (tags == null || tags.isEmpty()) {
+            return all;
+        }
+        return all.stream().filter(e -> {
+            List<String> eventTags = e.getTags() != null ? e.getTags() : Collections.emptyList();
+            if ("AND".equalsIgnoreCase(tagMode)) {
+                return tags.stream().allMatch(eventTags::contains);
+            } else {
+                return tags.stream().anyMatch(eventTags::contains);
+            }
+        }).collect(Collectors.toList());
+    }
+
     public List<EventReadResponse> readCausal(VectorClock startVector) {
         int dims = partitionService.getPartitionCount();
         Long maxGlobalSeq = eventRepository.findMaxGlobalSequence().orElse(0L);
@@ -381,6 +398,7 @@ public class EventStoreService {
                 .vectorClock(e.getVectorClock())
                 .causalDependencies(e.getCausalDependencies())
                 .timestamp(e.getTimestamp())
+                .tags(e.getTags())
                 .build();
     }
 
