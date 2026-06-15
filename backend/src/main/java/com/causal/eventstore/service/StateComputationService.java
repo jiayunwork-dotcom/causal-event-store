@@ -142,33 +142,42 @@ public class StateComputationService {
     private List<EventEntity> filterCausallyConsistent(List<EventEntity> allEvents,
                                                        List<EventEntity> eventsUpToTimestamp,
                                                        Instant queryTimestamp) {
-        List<EventEntity> result = new ArrayList<>();
+        Set<String> excluded = new HashSet<>();
 
-        for (EventEntity event : eventsUpToTimestamp) {
-            VectorClock eventVc = event.getVectorClock();
-            if (eventVc == null) {
-                result.add(event);
-                continue;
-            }
+        for (int i = 0; i < eventsUpToTimestamp.size(); i++) {
+            EventEntity e1 = eventsUpToTimestamp.get(i);
+            if (excluded.contains(e1.getEventId())) continue;
+            VectorClock vc1 = e1.getVectorClock();
+            if (vc1 == null) continue;
 
-            boolean isCausallyDetermined = true;
+            for (int j = i + 1; j < eventsUpToTimestamp.size(); j++) {
+                EventEntity e2 = eventsUpToTimestamp.get(j);
+                if (excluded.contains(e2.getEventId())) continue;
+                VectorClock vc2 = e2.getVectorClock();
+                if (vc2 == null) continue;
 
-            for (EventEntity other : allEvents) {
-                if (other.getEventId().equals(event.getEventId())) continue;
-                VectorClock otherVc = other.getVectorClock();
-                if (otherVc != null && otherVc.isConcurrent(eventVc)) {
-                    if (other.getTimestamp().isAfter(queryTimestamp)) {
-                        isCausallyDetermined = false;
-                        break;
+                if (vc1.isConcurrent(vc2)) {
+                    int cmp = e1.getTimestamp().compareTo(e2.getTimestamp());
+                    String loserId;
+                    if (cmp < 0) {
+                        loserId = e2.getEventId();
+                    } else if (cmp > 0) {
+                        loserId = e1.getEventId();
+                    } else {
+                        loserId = e1.getEventId().compareTo(e2.getEventId()) > 0
+                                ? e1.getEventId() : e2.getEventId();
                     }
+                    excluded.add(loserId);
                 }
-            }
-
-            if (isCausallyDetermined) {
-                result.add(event);
             }
         }
 
+        List<EventEntity> result = new ArrayList<>();
+        for (EventEntity event : eventsUpToTimestamp) {
+            if (!excluded.contains(event.getEventId())) {
+                result.add(event);
+            }
+        }
         return result;
     }
 
